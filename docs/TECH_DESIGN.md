@@ -328,9 +328,11 @@ npm start            # 生产模式运行
 
 ---
 
-## 10. 部署（只读演示）
+## 10. 部署（Cloudflare Workers，只读演示）
 
 部署目标只包含前台展示，后台只在本机使用。核心改动是把「运行时读文件」换成「构建时内嵌快照」，因此线上不需要可写磁盘。
+
+平台选 Cloudflare Workers，用 `@opennextjs/cloudflare` 把 Next.js 构建产物转换成 Worker。不走 Pages 静态托管：本站页面全部是动态路由（`app/layout.tsx` 声明了 `force-dynamic`），需要 Worker 运行时来渲染。
 
 ### 10.1 模式判断
 
@@ -340,14 +342,15 @@ npm start            # 生产模式运行
 export const READ_ONLY =
   process.env.READ_ONLY_DATA === "1" ||
   Boolean(process.env.VERCEL) ||
-  Boolean(process.env.CF_PAGES);
+  Boolean(process.env.CF_PAGES) ||
+  Boolean(process.env.WORKERS_CI);
 ```
 
 | 环境 | READ_ONLY | 数据来源 | 后台 |
 | --- | --- | --- | --- |
 | 本地 `npm run dev` | false | `data/db.json` | 可用，可写 |
-| Vercel | true | 构建时内嵌的 `data/content.json` | `/admin` 跳首页，入口隐藏 |
-| Cloudflare Pages | true | 同上 | 同上 |
+| Cloudflare Workers | true（`wrangler.jsonc` 的 `vars`） | 构建时内嵌的 `data/content.json` | `/admin` 跳首页，入口隐藏 |
+| Vercel / Cloudflare Pages | true | 同上 | 同上 |
 | 其他平台 | 手动设 `READ_ONLY_DATA=1` | 同上 | 同上 |
 
 ### 10.2 代码路径
@@ -357,21 +360,48 @@ export const READ_ONLY =
 - `app/admin/(panel)/layout.tsx`、`app/admin/login/page.tsx`、`actions.ts` 的 `guard()`：只读模式统一 `redirect("/")`。
 - `components/Footer.tsx`：只读模式不渲染「管理后台」入口。
 
-### 10.3 发布流程
+### 10.3 Cloudflare 相关文件
+
+| 文件 | 作用 |
+| --- | --- |
+| `wrangler.jsonc` | Worker 入口 `.open-next/worker.js`、静态资源 `.open-next/assets`、`nodejs_compat` 与 `global_fetch_strictly_public` 标志、`vars.READ_ONLY_DATA=1` |
+| `open-next.config.ts` | 适配器配置，本项目用默认值，不接 R2 缓存 |
+| `next.config.ts` | 末尾调用 `initOpenNextCloudflareForDev()`，只影响本地开发 |
+| `public/_headers` | `/_next/static/*` 长缓存 |
+| `.dev.vars` | 本地预览用，已加入 `.gitignore` |
+
+命令：
+
+```bash
+npm run preview   # 构建并在 workerd 中预览（默认 8787 端口）
+npm run deploy    # 构建并部署到 Cloudflare
+npm run upload    # 只上传新版本，用于灰度发布
+```
+
+### 10.4 发布流程
 
 ```bash
 # 1. 本地改内容（npm run dev + /admin）
 # 2. 导出快照
 npm run snapshot
-# 3. 提交并推送
+# 3. 本地验证 Worker 运行时
+npm run preview
+# 4. 提交并推送
 git add data/content.json
 git commit -m "update content snapshot"
 git push
-# 4. Vercel 自动构建部署，无需配置构建命令与环境变量
+# 5. Cloudflare Workers Builds 自动构建部署
 ```
+
+Workers Builds 的构建设置：
+
+- Build command：`npx @opennextjs/cloudflare build`
+- Deploy command：`npx @opennextjs/cloudflare deploy`
 
 注意：`data/content.json` 必须在构建前存在，否则 `lib/db.ts` 的静态导入会导致构建失败；首次部署前先执行一次 `npm run snapshot`。
 
-### 10.4 为什么不用 Cloudflare Pages 跑后台
+### 10.5 已知取舍
 
-Cloudflare Pages 的 Next.js 支持依赖 `@opennextjs/cloudflare` 适配器，运行在 Workers 上，没有可用的文件系统。即使接上 D1/KV，也要改数据层实现。作业场景只需要展示，所以两边都按只读处理，选 Vercel 更省事。
+- 不接 R2 增量缓存：作业规模下页面每次按需渲染即可，省掉建桶与绑定配置。
+- `nodejs_compat` 让 `fs` / `path` / `crypto` 能在 Worker 里被解析，保证 `lib/db.ts` 的模块能正常加载；只读模式下这些 API 一次都不会被调用。
+- 线上没有后台，内容更新只能走「本地改 → snapshot → push」。

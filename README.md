@@ -26,19 +26,33 @@ npm run build
 npm start
 ```
 
-## 部署（只读演示）
+## 部署（Cloudflare Workers，只读演示）
 
 线上只放前台展示，后台修改只在本地进行。数据在构建时打进包里，因此不需要数据库，也不需要可写磁盘。
 
+项目通过 `@opennextjs/cloudflare` 适配到 Cloudflare Workers（不是 Pages）。
+
 1. 本地改好内容后执行 `npm run snapshot`，生成 `data/content.json`（需要提交到仓库）
-2. 推送到 GitHub，在 Vercel 里 Import 这个仓库即可，无需额外配置
-3. Vercel / Cloudflare Pages 会自动进入只读模式：
+2. 推送到 GitHub，在 Cloudflare 控制台 Workers & Pages → Create → Import a repository 选这个仓库
+3. Build command 填 `npx @opennextjs/cloudflare build`，Deploy command 填 `npx @opennextjs/cloudflare deploy`
+4. 部署完成后 `wrangler.jsonc` 里的 `READ_ONLY_DATA=1` 会自动生效：
 
 - 页面读取构建时内嵌的 `data/content.json`，完全不碰 `data/db.json`
 - `/admin` 和页脚的后台入口自动隐藏
-- 其他平台部署时手动设置环境变量 `READ_ONLY_DATA=1`
 
 只读模式下所有写操作都会跳回首页，避免出现「保存看起来成功、其实没生效」的误解。
+
+本地验证 Worker 效果：
+
+```bash
+npm run preview   # 构建并在 workerd 中预览，默认 http://localhost:8787
+```
+
+命令行直接部署（需先 `npx wrangler login`）：
+
+```bash
+npm run deploy
+```
 
 ## 目录结构
 
@@ -63,6 +77,9 @@ docs/
   PRD.md             简化版需求文档
   TECH_DESIGN.md     技术设计文档（技术栈、架构、数据模型）
   PRD-detailed.md    早期完整版方案（备查，与当前实现无关）
+wrangler.jsonc       Cloudflare Worker 配置（入口、兼容性标志、只读变量）
+open-next.config.ts  OpenNext 适配器配置
+public/_headers      静态资源缓存头
 AGENTS.md            AI 开发规范与测试要求
 ```
 

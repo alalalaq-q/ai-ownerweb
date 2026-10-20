@@ -152,7 +152,9 @@ npm run build         # 必须构建成功
 ### 7.5 部署模式
 
 - 线上是只读演示：页面数据来自 `data/content.json`，该文件必须提交；`npm run snapshot` 负责从 `data/db.json` 生成它。
+- 部署平台是 Cloudflare Workers（`@opennextjs/cloudflare`），`wrangler.jsonc` 里已写死 `vars.READ_ONLY_DATA=1`；不要删掉这条，否则线上会尝试写文件并报错。
 - 修改内容后必须重新生成快照并重新部署，否则线上仍是旧内容。
+- 每次改动部署配置后，用 `npm run preview` 在本地 workerd 里确认页面能打开，再推送。
 - 不要为了「让线上也能保存」而偷偷删掉 `READ_ONLY` 判断或改用 `/tmp` 写文件——平台不会持久化，行为只会更难排查。
 - 新增依赖静态数据的功能时，保持 `readDb()` 是唯一读取入口，避免出现两套数据来源。
 
