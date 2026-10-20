@@ -7,6 +7,8 @@
 - 数据：本地 `data/db.json`，首次启动自动生成示例内容
 - 不依赖数据库、云服务、对象存储
 
+在线演示（只读）：https://ai-ownerweb.alalalaq.workers.dev
+
 ## 快速开始
 
 ```bash
