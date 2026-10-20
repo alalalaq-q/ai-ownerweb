@@ -10,12 +10,12 @@ const DB_FILE = path.join(DATA_DIR, "db.json");
 
 const seed: DB = {
   profile: {
-    name: "林星",
+    name: "张伟旗",
     role: "AI 专业学生 · 全栈开发爱好者",
     headline: "用代码把想法做成能用的产品",
     subheadline:
       "关注 AI 应用与前端体验，正在寻找实习机会。这个站点是我的作品集，也是我的学习笔记。",
-    bio: `你好，我是林星，一名 AI 专业的大三学生。
+    bio: `你好，我是张伟旗，一名 AI 专业的大三学生。
 
 我平时用 Python 做模型实验，也用 Next.js 写完整的 Web 产品。比起只跑通一个 demo，我更喜欢把东西打磨到别人可以直接使用。
 

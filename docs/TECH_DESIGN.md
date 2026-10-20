@@ -194,7 +194,7 @@ ai-ownerweb/
 ```json
 {
   "profile": {
-    "name": "林星",
+    "name": "张伟旗",
     "role": "AI 专业学生 · 全栈开发爱好者",
     "headline": "用代码把想法做成能用的产品",
     "subheadline": "关注 AI 应用与前端体验……",
